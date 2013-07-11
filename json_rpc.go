@@ -21,6 +21,20 @@ func NewJsonRpcServer() *JsonRpcServer {
 	return &JsonRpcServer{rpc.NewServer()}
 }
 
+func (server *JsonRpcServer) Accept(lis net.Listener) {
+	for {
+		conn, err := lis.Accept()
+		if err != nil {
+			log.Fatal("rpc.Serve: accept:", err.Error()) // TODO(r): exit?
+		}
+		go server.ServeConn(conn)
+	}
+}
+
+func (server *JsonRpcServer) ServeConn(conn io.ReadWriteCloser) {
+	server.ServeCodec(jsonrpc.NewServerCodec(conn))
+}
+
 func (server *JsonRpcServer) HandleHTTP(rpcPath string) {
 	http.Handle(rpcPath, server)
 }
@@ -41,10 +55,6 @@ func (server *JsonRpcServer) ServeHTTP(w http.ResponseWriter, req *http.Request)
 
 	io.WriteString(conn, "HTTP/1.0 "+jsonRpcConnected+"\n\n")
 
-	server.Server.ServeCodec(jsonrpc.NewServerCodec(conn))
-}
-
-func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	server.ServeCodec(jsonrpc.NewServerCodec(conn))
 }
 
