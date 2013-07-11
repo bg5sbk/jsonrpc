@@ -44,6 +44,10 @@ func (server *JsonRpcServer) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	server.Server.ServeCodec(jsonrpc.NewServerCodec(conn))
 }
 
+func (server *Server) ServeConn(conn io.ReadWriteCloser) {
+	server.ServeCodec(jsonrpc.NewServerCodec(conn))
+}
+
 func DialJsonRpc(network, address, path string) (*rpc.Client, error) {
 	var err error
 
