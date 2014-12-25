@@ -1,4 +1,4 @@
-package rpcutil
+package jsonrpc
 
 import (
 	"bufio"
@@ -13,15 +13,15 @@ import (
 
 var jsonRpcConnected = "200 Connected to JSON RPC"
 
-type JsonRpcServer struct {
+type Server struct {
 	*rpc.Server
 }
 
-func NewJsonRpcServer() *JsonRpcServer {
-	return &JsonRpcServer{rpc.NewServer()}
+func NewServer() *Server {
+	return &Server{rpc.NewServer()}
 }
 
-func (server *JsonRpcServer) Accept(lis net.Listener) {
+func (server *Server) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
@@ -31,15 +31,15 @@ func (server *JsonRpcServer) Accept(lis net.Listener) {
 	}
 }
 
-func (server *JsonRpcServer) ServeConn(conn io.ReadWriteCloser) {
+func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	server.ServeCodec(jsonrpc.NewServerCodec(conn))
 }
 
-func (server *JsonRpcServer) HandleHTTP(rpcPath string) {
+func (server *Server) HandleHTTP(rpcPath string) {
 	http.Handle(rpcPath, server)
 }
 
-func (server *JsonRpcServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "CONNECT" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -58,7 +58,7 @@ func (server *JsonRpcServer) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	server.ServeCodec(jsonrpc.NewServerCodec(conn))
 }
 
-func DialJsonRpc(network, address, path string) (*rpc.Client, error) {
+func DialHTTP(network, address, path string) (*rpc.Client, error) {
 	var err error
 
 	conn, err := net.Dial(network, address)
@@ -71,11 +71,11 @@ func DialJsonRpc(network, address, path string) (*rpc.Client, error) {
 	// Require successful HTTP response
 	// before switching to RPC protocol.
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
-	if err == nil && resp.Status == jsonRpcConnected {
-		return jsonrpc.NewClient(conn), nil
-	}
-
 	if err == nil {
+		if resp.Status == jsonRpcConnected {
+			return jsonrpc.NewClient(conn), nil
+		}
+	} else {
 		err = errors.New("unexpected HTTP response: " + resp.Status)
 	}
 

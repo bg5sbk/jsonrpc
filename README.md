@@ -19,54 +19,41 @@ package main
 import (
 	"errors"
 	"fmt"
-	rpc "github.com/realint/rpcutil"
+	"github.com/funny/jsonrpc"
 	"log"
 	"net/http"
 	"time"
+	"sync"
 )
+
+type Arith int
 
 type Args struct {
 	A, B int
 }
-
-type Quotient struct {
-	Quo, Rem int
-}
-
-type Arith int
 
 func (t *Arith) Multiply(args *Args, reply *int) error {
 	*reply = args.A * args.B
 	return nil
 }
 
-func (t *Arith) Divide(args *Args, quo *Quotient) error {
-	if args.B == 0 {
-		return errors.New("divide by zero")
-	}
-	quo.Quo = args.A / args.B
-	quo.Rem = args.A % args.B
-	return nil
-}
-
 func main() {
-	var server = rpc.NewJsonRpcServer()
+	var server = jsonrpc.NewServer()
 
 	server.Register(new(Arith))
 	server.HandleHTTP("/test/")
 
+	var wg sync.WatiGroup
+	wg.Add(1)
 	go func() {
+		wg.Done()
 		var err = http.ListenAndServe("0.0.0.0:12345", nil)
-
 		if err != nil {
 			log.Fatal("Serve Http:", err)
 		}
 	}()
 
-	time.Sleep(time.Second)
-
-	var client, err = rpc.DialJsonRpc("tcp", "127.0.0.1:12345", "/test/")
-
+	var client, err = jsonrpc.DialHTTP("tcp", "127.0.0.1:12345", "/test/")
 	if err != nil {
 		log.Fatal("Dialing:", err)
 	}
