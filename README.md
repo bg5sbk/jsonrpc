@@ -17,12 +17,10 @@ GO代码如下：
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/funny/jsonrpc"
 	"log"
 	"net/http"
-	"time"
 	"sync"
 )
 
@@ -43,7 +41,7 @@ func main() {
 	server.Register(new(Arith))
 	server.HandleHTTP("/test/")
 
-	var wg sync.WatiGroup
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		wg.Done()
@@ -52,6 +50,7 @@ func main() {
 			log.Fatal("Serve Http:", err)
 		}
 	}()
+	wg.Wait()
 
 	var client, err = jsonrpc.DialHTTP("tcp", "127.0.0.1:12345", "/test/")
 	if err != nil {
