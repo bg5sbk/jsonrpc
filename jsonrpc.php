@@ -16,28 +16,32 @@ class JsonRpcClient
 	}
 
 	function Dial() {
-		if ($this->host == "127.0.0.1" || $this->host == "localhost") 
-			$host = sprintf("%s:%u", $this->host, $this->port);
-		else
-			$host = $this->host;
+		$this->conn = @fsockopen($this->host, $this->port, $errno, $errstr, 5);
 
-		$conn = @fsockopen($host, $this->port, $errno, $errstr, 5);
-
-		if (!$conn) {
-			return "$errstr ($errno)";
+		if (!$this->conn) {
+			return "JsonRPC Dial Failed: $errstr ($errno)";
 		} else {
-			@fwrite($conn, "CONNECT ".$this->path." HTTP/1.0\n\n");
+			$err = fwrite($this->conn, "GET ".$this->path." HTTP/1.1\n\n");
+			if ($err === false)
+				return "JsonRPC Init Failed";
 
-			stream_set_timeout($conn, 0, 3000);
-
-			$line = @fgets($conn);
-
-			if ($line != "HTTP/1.0 200 Connected to JSON RPC\n") {
-				@fclose($conn);
-				return "unexpected HTTP response: $line";
+			stream_set_timeout($this->conn, 0, 3000);
+			$info = stream_get_meta_data($this->conn);
+			if ($info['timed_out']) {
+				fclose($this->conn);
+				return "JsonRPC Init Time Out";
 			}
-
-			$this->conn = $conn;
+			$line = fgets($this->conn);
+			if ($line != "HTTP/1.1 200 Connected to JSON RPC\n") {
+				fclose($this->conn);
+				return "JsonRPC Unexpected Result: $line";
+			}
+			for (;;) {
+				$line = fgets($this->conn);
+				if ($line == "\n") {
+					break;
+				}
+			}
 		}
 
 		return NULL;
@@ -45,32 +49,27 @@ class JsonRpcClient
 
 	function Call($method, $params) {
 		if ($this->conn == NULL)
-			return "Plaeas call Dial() first";
+			return "JsonRPC Not Connect";
 
-		$request = array(
+		$err = fwrite($this->conn, json_encode(array(
 			'method' => $method,
 			'params' => array($params),
-			'id' => $this->reqId,
-		);
-
-		$request = json_encode($request);
-
-		$err = fwrite($this->conn, $request."\n");
-
+			'id'     => $this->reqId++,
+		))."\n");
 		if ($err === false)
-			return "send data failed";
+			return "JsonRPC Send Failed";
 
-		for (;;) {
-			$line = @fgets($this->conn);
-
-			if ($line != "\n") {
-				break;
-			}
+		stream_set_timeout($this->conn, 0, 3000);
+		$info = stream_get_meta_data($this->conn);
+		if ($info['timed_out']) {
+			fclose($this->conn);
+			return "JsonRPC Time Out";
 		}
 
-		$this->reqId += 1;
-
+		$line = fgets($this->conn);
+		if ($line === false) {
+			return NULL;
+		}
 		return json_decode($line);
 	}
 }
-?>

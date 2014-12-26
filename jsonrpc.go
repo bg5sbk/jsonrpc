@@ -40,21 +40,14 @@ func (server *Server) HandleHTTP(rpcPath string) {
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "CONNECT" {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, "405 must CONNECT\n")
-		return
-	}
-
 	var conn, _, err = w.(http.Hijacker).Hijack()
 	if err != nil {
 		log.Print("rpc hijacking ", req.RemoteAddr, ": ", err.Error())
 		return
 	}
-
-	io.WriteString(conn, "HTTP/1.0 "+jsonRpcConnected+"\n\n")
-
+	io.WriteString(conn, "HTTP/1.1 "+jsonRpcConnected+"\n")
+	//io.WriteString(conn, "Access-Control-Allow-Origin: *\n")
+	io.WriteString(conn, "Content-Type: application/json\n\n")
 	server.ServeCodec(jsonrpc.NewServerCodec(conn))
 }
 
@@ -66,11 +59,11 @@ func DialHTTP(network, address, path string) (*rpc.Client, error) {
 		return nil, err
 	}
 
-	io.WriteString(conn, "CONNECT "+path+" HTTP/1.0\n\n")
+	io.WriteString(conn, "GET "+path+" HTTP/1.1\n\n")
 
 	// Require successful HTTP response
 	// before switching to RPC protocol.
-	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
 	if err == nil {
 		if resp.Status == jsonRpcConnected {
 			return jsonrpc.NewClient(conn), nil

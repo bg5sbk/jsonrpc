@@ -72,39 +72,34 @@ func main() {
 	fmt.Scanln()
 }
 ```
+
 PHP调用端代码如下：
 ```php
+include 'jsonrpc.php';
+
 $client = new JsonRpcClient("127.0.0.1", 12345, "/test/");
 
-$dial_result = $client->Dial();
+echo $client->Dial();
+echo "\n";
 
-echo $dial_result."\n";
+var_export($client->Call("Arith.Multiply", array('A'=>7, 'B'=>8)));
+echo "\n";
 
-$rpc_result = $client->Call("Arith.Multiply", array('A'=>7, 'B'=>8));
-
-echo var_dump($rpc_result)."\n";
-
-$rpc_result = $client->Call("Arith.Multiply", array('A'=>6, 'B'=>6));
-
-echo var_dump($rpc_result)."\n";
+var_export($client->Call("Arith.Multiply", array('A'=>6, 'B'=>6)));
+echo "\n";
 ```
 
 PHP端输出结果：
 
-	object(stdClass)#2 (3) {
-	  ["id"]=>
-	  int(1)
-	  ["result"]=>
-	  int(56)
-	  ["error"]=>
-	  NULL
-	}
-
-	object(stdClass)#3 (3) {
-	  ["id"]=>
-	  int(2)
-	  ["result"]=>
-	  int(36)
-	  ["error"]=>
-	  NULL
-	}
+```
+stdClass::__set_state(array(
+   'id' => 1,
+   'result' => 56,
+   'error' => NULL,
+))
+stdClass::__set_state(array(
+   'id' => 2,
+   'result' => 36,
+   'error' => NULL,
+))
+```
