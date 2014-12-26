@@ -68,16 +68,13 @@ func DialHTTP(network, address, path string) (*rpc.Client, error) {
 		if resp.Status == jsonRpcConnected {
 			return jsonrpc.NewClient(conn), nil
 		}
-	} else {
-		err = errors.New("unexpected HTTP response: " + resp.Status)
 	}
 
 	conn.Close()
 
 	return nil, &net.OpError{
-		Op:   "dial-http",
-		Net:  network + " " + address,
-		Addr: nil,
-		Err:  err,
+		Op:  "JsonRPC dial to",
+		Net: network + "://" + address,
+		Err: errors.New("unexpected HTTP response: " + resp.Status),
 	}
 }
