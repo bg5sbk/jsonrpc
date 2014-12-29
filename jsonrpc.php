@@ -1,5 +1,5 @@
 <?php
-class JsonRpcClient
+class JsonRPC
 {
 	private $host;
 	private $port;
@@ -15,41 +15,45 @@ class JsonRpcClient
 		$this->reqId = 1;
 	}
 
-	function Dial() {
+	private function Dial() {
 		$this->conn = @fsockopen($this->host, $this->port, $errno, $errstr, 5);
-
 		if (!$this->conn) {
 			return "JsonRPC Dial Failed: $errstr ($errno)";
-		} else {
-			$err = fwrite($this->conn, "GET ".$this->path." HTTP/1.1\n\n");
-			if ($err === false)
-				return "JsonRPC Init Failed";
+		}
 
-			stream_set_timeout($this->conn, 0, 3000);
-			$info = stream_get_meta_data($this->conn);
-			if ($info['timed_out']) {
-				fclose($this->conn);
-				return "JsonRPC Init Time Out";
-			}
+		$err = fwrite($this->conn, "GET ".$this->path." HTTP/1.1\n\n");
+		if ($err === false)
+			return "JsonRPC Init Failed";
+
+		stream_set_timeout($this->conn, 0, 3000);
+		$info = stream_get_meta_data($this->conn);
+		if ($info['timed_out']) {
+			fclose($this->conn);
+			return "JsonRPC Init Time Out";
+		}
+		// check first http head
+		$line = fgets($this->conn);
+		if ($line != "HTTP/1.1 200 Connected to JSON RPC\n") {
+			fclose($this->conn);
+			return "JsonRPC Unexpected Result: $line";
+		}
+		// ignore http head
+		for (;;) {
 			$line = fgets($this->conn);
-			if ($line != "HTTP/1.1 200 Connected to JSON RPC\n") {
-				fclose($this->conn);
-				return "JsonRPC Unexpected Result: $line";
-			}
-			for (;;) {
-				$line = fgets($this->conn);
-				if ($line == "\n") {
-					break;
-				}
+			if ($line == "\n") {
+				break;
 			}
 		}
 
 		return NULL;
 	}
 
-	function Call($method, $params) {
-		if ($this->conn == NULL)
-			return "JsonRPC Not Connect";
+	public function Call($method, $params) {
+		if ($this->conn == NULL) {
+			$dialResult = $this->Dial();
+			if ($dialResult !== NULL)
+				return $dialResult;
+		}
 
 		$err = fwrite($this->conn, json_encode(array(
 			'method' => $method,
