@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -75,7 +76,15 @@ func Test_PHP_HTTP(t *testing.T) {
 		return
 	}
 
-	result, err := exec.Command(php, "jsonrpc_test.php").Output()
+	cmd := exec.Command(php)
+	cmd.Stdin = strings.NewReader(`<?php
+include 'jsonrpc.php';
+
+$client = new JsonRPC("127.0.0.1", 12345, "/test/");
+$r = $client->Call("Arith.Multiply", array('A'=>7, 'B'=>8));
+echo $r->result;
+?>`)
+	result, err := cmd.Output()
 
 	unitest.NotError(t, err)
 	unitest.Pass(t, string(result) == "56")
