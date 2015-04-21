@@ -74,43 +74,35 @@ func Test_Go_TCP(t *testing.T) {
 	unitest.Pass(t, reply == 56)
 }
 
-func Test_PHP_HTTP(t *testing.T) {
+func PHP(code string) (string, error) {
 	php, err := exec.LookPath("php")
 	if err != nil {
-		t.Log("PHP command not found")
-		return
+		return "", errors.New("PHP command not found")
 	}
-
 	cmd := exec.Command(php)
-	cmd.Stdin = strings.NewReader(`<?php
-include 'jsonrpc.php';
-
-$client = new JsonRPC("127.0.0.1", 12345, "/test/");
-$r = $client->Call("Arith.Multiply", array('A'=>7, 'B'=>8));
-echo $r->result;
-?>`)
+	cmd.Stdin = strings.NewReader("<?php " + code + ` ?>`)
 	result, err := cmd.Output()
+	return string(result), err
+}
 
+func Test_PHP_HTTP(t *testing.T) {
+	result, err := PHP(`
+		include 'jsonrpc.php';
+		$client = new JsonRPC("127.0.0.1", 12345, "/test/");
+		$r = $client->Call("Arith.Multiply", array('A'=>7, 'B'=>8));
+		echo $r->result;
+	`)
 	unitest.NotError(t, err)
-	unitest.Pass(t, string(result) == "56")
+	unitest.Pass(t, result == "56")
 }
 
 func Test_PHP_Error(t *testing.T) {
-	php, err := exec.LookPath("php")
-	if err != nil {
-		t.Log("PHP command not found")
-		return
-	}
-
-	cmd := exec.Command(php)
-	cmd.Stdin = strings.NewReader(`<?php
-include 'jsonrpc.php';
-
-$client = new JsonRPC("127.0.0.1", 12345, "/test/");
-$r = $client->Call("Arith.GetError");
-echo $r->error;
-?>`)
-	rpcErr, err := cmd.Output()
+	rpcErr, err := PHP(`
+		include 'jsonrpc.php';
+		$client = new JsonRPC("127.0.0.1", 12345, "/test/");
+		$r = $client->Call("Arith.GetError");
+		echo $r->error;
+	`)
 	unitest.NotError(t, err)
-	unitest.Pass(t, string(rpcErr) == "Error!")
+	unitest.Pass(t, rpcErr == "Error!")
 }
