@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"errors"
 	"github.com/funny/unitest"
 	"log"
 	"net"
@@ -19,6 +20,10 @@ type Args struct {
 func (t *Arith) Multiply(args *Args, reply *int) error {
 	*reply = args.A * args.B
 	return nil
+}
+
+func (t *Arith) GetError(args *Args, reply *int) error {
+	return errors.New("Error!")
 }
 
 func init() {
@@ -88,4 +93,24 @@ echo $r->result;
 
 	unitest.NotError(t, err)
 	unitest.Pass(t, string(result) == "56")
+}
+
+func Test_PHP_Error(t *testing.T) {
+	php, err := exec.LookPath("php")
+	if err != nil {
+		t.Log("PHP command not found")
+		return
+	}
+
+	cmd := exec.Command(php)
+	cmd.Stdin = strings.NewReader(`<?php
+include 'jsonrpc.php';
+
+$client = new JsonRPC("127.0.0.1", 12345, "/test/");
+$r = $client->Call("Arith.GetError");
+echo $r->error;
+?>`)
+	rpcErr, err := cmd.Output()
+	unitest.NotError(t, err)
+	unitest.Pass(t, string(rpcErr) == "Error!")
 }
