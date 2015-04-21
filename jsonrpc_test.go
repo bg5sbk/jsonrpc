@@ -80,15 +80,17 @@ func PHP(code string) (string, error) {
 		return "", errors.New("PHP command not found")
 	}
 	cmd := exec.Command(php)
-	cmd.Stdin = strings.NewReader("<?php " + code + ` ?>`)
+	cmd.Stdin = strings.NewReader(`<?php 
+	include 'jsonrpc.php';
+	$client = new JsonRPC("127.0.0.1", 12345, "/test/");
+	` + code + `
+	?>`)
 	result, err := cmd.Output()
 	return string(result), err
 }
 
 func Test_PHP_HTTP(t *testing.T) {
 	result, err := PHP(`
-		include 'jsonrpc.php';
-		$client = new JsonRPC("127.0.0.1", 12345, "/test/");
 		$r = $client->Call("Arith.Multiply", array('A'=>7, 'B'=>8));
 		echo $r->result;
 	`)
@@ -98,8 +100,6 @@ func Test_PHP_HTTP(t *testing.T) {
 
 func Test_PHP_Error(t *testing.T) {
 	rpcErr, err := PHP(`
-		include 'jsonrpc.php';
-		$client = new JsonRPC("127.0.0.1", 12345, "/test/");
 		$r = $client->Call("Arith.GetError");
 		echo $r->error;
 	`)
